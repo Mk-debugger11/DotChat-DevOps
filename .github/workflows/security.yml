@@ -45,11 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Trivy config scan (k8s manifests, Dockerfiles)
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          scan-type: config
-          scan-ref: .
-          severity: HIGH,CRITICAL
-          exit-code: "1"
-          trivyignores: .trivyignore
+      - name: Trivy config scan (k8s manifests, Dockerfiles) — block HIGH/CRITICAL
+        run: |
+          docker run --rm -v "$PWD:/src" aquasec/trivy:0.56.2 config \
+            --severity HIGH,CRITICAL --exit-code 1 --ignorefile /src/.trivyignore /src
