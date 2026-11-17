@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
 import ChatSidebar, {
   UserProfileInfo,
   ThreadItem,
@@ -63,13 +63,15 @@ export default function MessagesPage(): React.JSX.Element {
   const [typingUsers, setTypingUsers] = useState<Record<string, Set<string>>>({})
 
   const activeThreadIdRef = useRef<string | null>(activeThreadId)
-  activeThreadIdRef.current = activeThreadId
-
   const activeUserRef = useRef<UserProfileInfo | null>(activeUser)
-  activeUserRef.current = activeUser
-
   const currentUserRef = useRef<UserProfileInfo | null>(currentUser)
-  currentUserRef.current = currentUser
+
+  // Keep the latest values for socket handlers (synced after render, before paint)
+  useLayoutEffect(() => {
+    activeThreadIdRef.current = activeThreadId
+    activeUserRef.current = activeUser
+    currentUserRef.current = currentUser
+  }, [activeThreadId, activeUser, currentUser])
 
   const readTimerRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -325,6 +327,8 @@ export default function MessagesPage(): React.JSX.Element {
   // 4. WebSocket Room Joining, Mark as Read & Real-time Messages for Active Thread
   useEffect(() => {
     if (!activeThreadId) {
+      // Clear the message pane when no thread is selected
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMessages([])
       return
     }

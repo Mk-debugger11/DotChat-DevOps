@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
 import { apiRequest } from '../../utils/api'
 import { getSocket } from '../../utils/socket'
 import ChatInput from '../../components/chatInput'
@@ -105,7 +105,10 @@ export default function GroupsPage(): React.JSX.Element {
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const activeGroupIdRef = useRef<string | null>(null)
-  activeGroupIdRef.current = activeGroup?.id || null
+  // Keep the latest active group id for socket handlers (synced after render, before paint)
+  useLayoutEffect(() => {
+    activeGroupIdRef.current = activeGroup?.id || null
+  }, [activeGroup])
 
   // Auto-scroll to bottom when messages update
   useEffect(() => {
@@ -142,6 +145,8 @@ export default function GroupsPage(): React.JSX.Element {
   }, [])
 
   useEffect(() => {
+    // Initial data load on mount (fetchGroups sets a loading flag before awaiting)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchGroups()
   }, [fetchGroups])
 
@@ -236,6 +241,8 @@ export default function GroupsPage(): React.JSX.Element {
   // 4. Load Messages & Socket Room for Active Group
   useEffect(() => {
     if (!activeGroup) {
+      // Clear the message pane when no group is selected
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMessages([])
       return
     }

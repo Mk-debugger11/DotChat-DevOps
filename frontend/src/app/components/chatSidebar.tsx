@@ -111,6 +111,8 @@ export default function ChatSidebar({
   useEffect(() => {
     const query = searchQuery.trim()
     if (!query) {
+      // Reset results when the search box is cleared
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSearchResults([])
       setSearching(false)
       return
