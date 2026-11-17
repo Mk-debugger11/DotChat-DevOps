@@ -1,4 +1,12 @@
 .DS_Store
 node_modules/
+dist/
+.next/
+*.tsbuildinfo
+*.log
+
+# Secrets never go in git (CI/CD uses GitHub Secrets; the cluster uses Kubernetes Secrets)
 .env*
 !.env.example
+*.pem
+*kubeconfig*

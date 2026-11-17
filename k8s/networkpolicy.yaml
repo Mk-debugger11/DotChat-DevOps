@@ -1,0 +1,17 @@
+# Zero-trust networking inside the namespace (enforced by k3s's built-in network policy controller)
+# Redis accepts connections ONLY from backend pods.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-allow-backend-only
+  namespace: dotchat
+spec:
+  podSelector:
+    matchLabels: { app: redis }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: { app: backend }
+      ports:
+        - port: 6379

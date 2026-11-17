@@ -1,0 +1,49 @@
+# Tells Prometheus to scrape every backend pod's internal :9464/metrics endpoint
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: dotchat-backend
+  namespace: dotchat
+spec:
+  selector:
+    matchLabels: { app: backend }
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: dotchat-alerts
+  namespace: dotchat
+spec:
+  groups:
+    - name: dotchat.rules
+      rules:
+        - alert: DotChatHighErrorRate
+          expr: |
+            sum(rate(http_requests_total{namespace="dotchat",status=~"5.."}[5m]))
+              / clamp_min(sum(rate(http_requests_total{namespace="dotchat"}[5m])), 1e-9) > 0.05
+          for: 5m
+          labels: { severity: critical }
+          annotations:
+            summary: "More than 5% of DotChat API requests are failing"
+        - alert: DotChatHighLatencyP95
+          expr: |
+            histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{namespace="dotchat"}[5m]))) > 1
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "DotChat API p95 latency above 1s"
+        - alert: DotChatBackendDown
+          expr: sum(up{namespace="dotchat",job="backend"}) < 1
+          for: 2m
+          labels: { severity: critical }
+          annotations:
+            summary: "No DotChat backend pod is being scraped successfully"
+        - alert: DotChatPodRestarting
+          expr: increase(kube_pod_container_status_restarts_total{namespace="dotchat"}[15m]) > 3
+          labels: { severity: warning }
+          annotations:
+            summary: "Pod {{ $labels.pod }} restarted more than 3 times in 15m"

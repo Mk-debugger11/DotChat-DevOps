@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: dotchat
+  labels: { app: backend }
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0 # zero-downtime: a new pod must be Ready before an old one is removed
+  selector:
+    matchLabels: { app: backend }
+  template:
+    metadata:
+      labels: { app: backend, mongo-client: "true" }
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000 # `node` user from the image
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: backend
+          image: ghcr.io/mk-debugger11/dotchat-backend:bootstrap
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: metrics
+              containerPort: 9464
+          envFrom:
+            - configMapRef: { name: dotchat-config }
+            - secretRef: { name: dotchat-secrets }
+          resources:
+            requests: { cpu: 100m, memory: 160Mi }
+            limits: { cpu: 500m, memory: 384Mi }
+          # Startup: give the process time to boot and connect to Redis/Mongo
+          startupProbe:
+            httpGet: { path: /livez, port: http }
+            periodSeconds: 3
+            failureThreshold: 20
+          # Liveness: is the process alive? (no DB check -> DB outages don't cause restart loops)
+          livenessProbe:
+            httpGet: { path: /livez, port: http }
+            periodSeconds: 15
+            failureThreshold: 3
+          # Readiness: can it serve traffic? (checks MongoDB) -> pod removed from Service if not
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          lifecycle:
+            # Let the ingress drop this endpoint before SIGTERM, so in-flight requests finish
+            preStop:
+              exec: { command: ["sleep", "5"] }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - { name: tmp, emptyDir: { sizeLimit: 64Mi } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: dotchat
+  labels: { app: backend }
+  annotations:
+    # Sticky sessions: Socket.IO's HTTP long-polling fallback must hit the same pod
+    traefik.ingress.kubernetes.io/service.sticky.cookie: "true"
+    traefik.ingress.kubernetes.io/service.sticky.cookie.name: dotchat_affinity
+    traefik.ingress.kubernetes.io/service.sticky.cookie.secure: "true"
+    traefik.ingress.kubernetes.io/service.sticky.cookie.samesite: "none"
+spec:
+  selector: { app: backend }
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+    - name: metrics
+      port: 9464
+      targetPort: metrics

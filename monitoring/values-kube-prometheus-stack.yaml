@@ -1,0 +1,45 @@
+# Helm values for prometheus-community/kube-prometheus-stack, tuned for a single-node k3s demo.
+# Install: see scripts/bootstrap-cluster.sh
+
+# k3s runs these control-plane components inside the k3s binary, they cannot be scraped separately
+kubeControllerManager: { enabled: false }
+kubeScheduler: { enabled: false }
+kubeProxy: { enabled: false }
+kubeEtcd: { enabled: false }
+
+alertmanager:
+  enabled: false # alerts are still evaluated and visible in Prometheus/Grafana
+
+prometheus:
+  prometheusSpec:
+    retention: 3d
+    scrapeInterval: 15s
+    # Pick up ServiceMonitors / PrometheusRules from any namespace (e.g. dotchat)
+    serviceMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    resources:
+      requests: { cpu: 100m, memory: 400Mi }
+      limits: { memory: 1Gi }
+
+grafana:
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts: [grafana.13-232-16-107.sslip.io]
+    tls:
+      - secretName: grafana-tls
+        hosts: [grafana.13-232-16-107.sslip.io]
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      searchNamespace: ALL
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }

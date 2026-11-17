@@ -1,0 +1,14 @@
+# Non-secret runtime configuration for the backend.
+# Secrets (DATABASE_URL, JWT_SECRET_KEY, GOOGLE_CLIENT_ID) live in the `dotchat-secrets`
+# Secret — see secret.example.yaml. It is created once on the cluster, never committed.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dotchat-config
+  namespace: dotchat
+data:
+  NODE_ENV: "production"
+  PORT: "8080"
+  METRICS_PORT: "9464"
+  REDIS_URL: "redis://redis:6379"
+  CLIENT_URL: "https://dotchat.13-232-16-107.sslip.io"
