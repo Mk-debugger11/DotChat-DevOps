@@ -30,6 +30,11 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# The standalone server runs with plain `node`: drop npm/npx/corepack (and their
+# bundled deps) from the runtime image and pick up the latest Alpine security patches
+RUN rm -rf /usr/local/lib/node_modules /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+  && apk upgrade --no-cache
+
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 

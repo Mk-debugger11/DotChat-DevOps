@@ -21,6 +21,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=8080
 
+# The app runs with plain `node`, so drop npm/npx/corepack from the runtime image:
+# smaller attack surface and no vulnerable npm-bundled deps (e.g. tar) in production
+RUN rm -rf /usr/local/lib/node_modules /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+  && apk upgrade --no-cache
+
 USER node
 
 COPY --chown=node:node package*.json ./
